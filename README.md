@@ -1,37 +1,168 @@
-## Welcome to GitHub Pages
+include <string>
+#include <unordered_set>
+#include <vector>
+#include <memory>
+#include <limits>
 
-You can use the [editor on GitHub](https://github.com/daadybakingsoda/big-bird-is-black/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
+struct symptom;
+using symptom_t = std::shared_ptr<symptom const>;
+using symptom_list = std::vector<symptom_t>;
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+struct symptom {
+  std::string name;
+  double cost;
+  double infectivity;
+  std::unordered_set<symptom_t> next_symptoms;
+};
 
-### Markdown
+auto estimateMostEfficientRoutes(
+    double sum,
+    double current_infectivity,
+    symptom_list const& r0,
+    std::unordered_set<symptom_t> const& symptoms)
+      -> std::vector<std::pair<double, symptom_list>> {
+  if (symptoms.empty()) {
+    return {{sum, r0}};
+  }
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+  std::vector<std::pair<double, symptom_list>> results;
+  double max_sum = std::numeric_limits<double>::lowest();
+  for (auto& s : symptoms) {
+    symptom_list r1 = r0;
+    r1.push_back(s);
 
-```markdown
-Syntax highlighted code block
+    std::unordered_set<symptom_t> remaining_symptoms = symptoms;
+    for (auto& s_ : s->next_symptoms) {
+      remaining_symptoms.insert(s_);
+    }
+    for (auto& s_ : r1) {
+      remaining_symptoms.erase(s_);
+    }
 
-# Header 1
-## Header 2
-### Header 3
+    std::vector<std::pair<double, symptom_list>> rs =
+        estimateMostEfficientRoutes(
+            sum + s->cost * current_infectivity,
+            current_infectivity + s->infectivity,
+            r1, remaining_symptoms);
+    for (auto& r : rs) {
+      if (max_sum < r.first) {
+        results.clear();
+        max_sum = r.first;
+        results.push_back(std::move(r));
+      } else if (max_sum == r.first) {
+        results.push_back(std::move(r));
+      }
+    }
+  }
+  return results;
+}
 
-- Bulleted
-- List
+std::unordered_set<symptom_t> create_symptoms() {
+  auto pulmonary_edema = std::make_shared<symptom>();
+  pulmonary_edema->name = "肺水腫";
+  pulmonary_edema->cost = 7;
+  pulmonary_edema->infectivity = 5;
 
-1. Numbered
-2. List
+  auto nausea = std::make_shared<symptom>();
+  nausea->name = "吐き気";
+  nausea->cost = 2;
+  nausea->infectivity = 1;
 
-**Bold** and _Italic_ and `Code` text
+  {
+    auto vomiting = std::make_shared<symptom>();
+    vomiting->name = "嘔吐";
+    vomiting->cost = 3;
+    vomiting->infectivity = 3;
+    nausea->next_symptoms.insert(vomiting);
 
-[Link](url) and ![Image](src)
-```
+    vomiting->next_symptoms.insert(pulmonary_edema);
 
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
+    auto diarrhoea = std::make_shared<symptom>();
+    diarrhoea->name = "下痢";
+    diarrhoea->cost = 6;
+    diarrhoea->infectivity = 6;
+    vomiting->next_symptoms.insert(diarrhoea);
+    pulmonary_edema->next_symptoms.insert(diarrhoea);
+  }
 
-### Jekyll Themes
+  auto coughing = std::make_shared<symptom>();
+  coughing->name = "咳";
+  coughing->cost = 4;
+  coughing->infectivity = 3;
 
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/daadybakingsoda/big-bird-is-black/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+  {
+    auto sneezing = std::make_shared<symptom>();
+    sneezing->name = "くしゃみ";
+    sneezing->cost = 5;
+    sneezing->infectivity = 5;
+    coughing->next_symptoms.insert(sneezing);
 
-### Support or Contact
+    auto pneumonia = std::make_shared<symptom>();
+    pneumonia->name = "肺炎";
+    pneumonia->cost = 3;
+    pneumonia->infectivity = 3;
+    coughing->next_symptoms.insert(pneumonia);
 
-Having trouble with Pages? Check out our [documentation](https://help.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
+    pneumonia->next_symptoms.insert(pulmonary_edema);
+  }
+
+  auto rash = std::make_shared<symptom>();
+  rash->name = "発疹";
+  rash->cost = 3;
+  rash->infectivity = 2;
+
+  {
+    auto sweating = std::make_shared<symptom>();
+    sweating->name = "発汗";
+    sweating->cost = 3;
+    sweating->infectivity = 2;
+    rash->next_symptoms.insert(sweating);
+
+    auto skin_lesions = std::make_shared<symptom>();
+    skin_lesions->name = "皮膚障害";
+    skin_lesions->cost = 8;
+    skin_lesions->infectivity = 11;
+    sweating->next_symptoms.insert(skin_lesions);
+  }
+
+  auto cysts = std::make_shared<symptom>();
+  cysts->name = "嚢胞";
+  cysts->cost = 2;
+  cysts->infectivity = 2;
+
+  {
+    auto abscesses = std::make_shared<symptom>();
+    abscesses->name = "膿瘍";
+    abscesses->cost = 2;
+    abscesses->infectivity = 4;
+    cysts->next_symptoms.insert(abscesses);
+  }
+
+  auto anaemia = std::make_shared<symptom>();
+  anaemia->name = "貧血";
+  anaemia->cost = 2;
+  anaemia->infectivity = 1;
+
+  {
+    auto haemophilia = std::make_shared<symptom>();
+    haemophilia->name = "血友病";
+    haemophilia->cost = 3;
+    haemophilia->infectivity = 4;
+    anaemia->next_symptoms.insert(haemophilia);
+  }
+
+  return {nausea, coughing, rash, cysts, anaemia};
+}
+
+#include <iostream>
+
+int main() {
+  auto results = estimateMostEfficientRoutes(0, 4, {}, create_symptoms());
+  for (auto& result : results) {
+    std::cout << result.first << " ";
+    for (auto& s : result.second) {
+      std::cout << s->name << " ";
+    }
+    std::cout << std::endl;
+  }
+}
